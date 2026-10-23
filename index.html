@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diorama Day</title>
+  <style>
+    :root {
+      --paper: #fffaf3;
+      --ink: #4e4540;
+      --muted: #857a72;
+      --line: #ddd2c8;
+      --accent: #d8755d;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+    body {
+      background: #eee8e1;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+    #hud { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+    .brand { position: absolute; top: 20px; left: 22px; }
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1;
+      letter-spacing: .16em;
+      font-weight: 800;
+    }
+    .brand h1 span { color: var(--accent); }
+    .brand p { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+    #tip {
+      position: absolute;
+      left: 22px;
+      bottom: 22px;
+      max-width: 390px;
+      padding: 10px 13px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--paper);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    #needs {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      width: 188px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--paper);
+      pointer-events: auto;
+    }
+    .needs-head {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 9px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    #daylight { color: var(--accent); letter-spacing: 0; font-weight: 700; }
+    #people { display: grid; gap: 7px; }
+    .person {
+      width: 100%;
+      padding: 8px 9px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .person.selected { border-color: var(--accent); }
+    .person-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .person-name { font-size: 12px; font-weight: 800; }
+    .selected-dot { width: 6px; height: 6px; border-radius: 50%; background: transparent; }
+    .selected .selected-dot { background: var(--accent); }
+    .need-row {
+      display: grid;
+      grid-template-columns: 40px 1fr 23px;
+      gap: 5px;
+      align-items: center;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+    .need-value { color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+    .track { height: 4px; overflow: hidden; border-radius: 4px; background: #e8dfd7; }
+    .fill { width: 100%; height: 100%; background: var(--accent); transform-origin: left; }
+    .happy .fill { background: var(--ink); }
+    #toast {
+      position: absolute;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      padding: 9px 14px;
+      border-radius: 20px;
+      background: var(--ink);
+      color: var(--paper);
+      font-size: 11px;
+      opacity: 0;
+      transition: opacity .18s;
+      white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
+    #start {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+      background: #e9e2da;
+      cursor: pointer;
+    }
+    #start.hidden { display: none; }
+    .start-card {
+      width: min(430px, 100%);
+      padding: 38px 32px;
+      border: 1px solid #cfc2b7;
+      border-radius: 18px;
+      background: var(--paper);
+      text-align: center;
+    }
+    .start-mark {
+      width: 42px;
+      height: 42px;
+      margin: 0 auto 20px;
+      border: 9px solid var(--accent);
+      transform: rotate(45deg);
+    }
+    .start-card h2 { margin: 0; font-size: 30px; letter-spacing: -.04em; }
+    .start-card p { margin: 13px auto 25px; max-width: 310px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .play {
+      display: inline-block;
+      padding: 12px 22px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: white;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .15em;
+    }
+    .start-small { display: block; margin-top: 18px; color: var(--muted); font-size: 10px; }
+    @media (max-width: 700px) {
+      .brand { top: 15px; left: 15px; }
+      .brand p { display: none; }
+      #needs { top: auto; right: 12px; bottom: 12px; left: 12px; width: auto; padding: 9px; }
+      .needs-head { margin-bottom: 7px; }
+      #people { display: flex; overflow-x: auto; }
+      .person { min-width: 142px; }
+      #tip { left: 14px; right: 14px; bottom: 135px; max-width: none; font-size: 11px; }
+      #toast { bottom: 143px; max-width: 90%; overflow: hidden; text-overflow: ellipsis; }
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="hud">
+    <div class="brand">
+      <h1>DIORAMA <span>DAY</span></h1>
+      <p>A little room. A little care.</p>
+    </div>
+    <div id="needs">
+      <div class="needs-head"><span>Family needs</span><span id="daylight">Daylight</span></div>
+      <div id="people"></div>
+    </div>
+    <div id="tip">Select a family member, then click a prop to walk there.</div>
+    <div id="toast" role="status"></div>
+  </div>
+
+  <div id="start" role="button" tabindex="0" aria-label="Click to play">
+    <div class="start-card">
+      <div class="start-mark"></div>
+      <h2>Diorama Day</h2>
+      <p>Spend a quiet day with the family. Select someone, guide them around the room, and keep their energy and happiness up.</p>
+      <span class="play">CLICK TO PLAY</span>
+      <span class="start-small">Drag to orbit · Scroll or pinch to zoom</span>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const ACCENT = 0xd8755d;
+    const FLOOR_Y = 0.09;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xeee8e1);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.domElement.setAttribute('aria-label', 'Interactive family diorama');
+    document.body.prepend(renderer.domElement);
+
+    const camera = new THREE.OrthographicCamera(-8, 8, 8, -8, 0.1, 100);
+    camera.position.set(13, 13, 16);
+    camera.lookAt(0, 1, 0);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.enablePan = false;
+    controls.minZoom = 0.7;
+    controls.maxZoom = 2.5;
+    controls.minPolarAngle = 0.35;
+    controls.maxPolarAngle = Math.PI / 2.12;
+
+    const hemi = new THREE.HemisphereLight(0xfff5e9, 0x9c8d83, 1.35);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xffead5, 1.8);
+    sun.position.set(5, 11, 7);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 30 });
+    sun.shadow.bias = -0.0004;
+    scene.add(sun);
+
+    const materials = new Map();
+    function mat(color) {
+      if (!materials.has(color)) materials.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.9 }));
+      return materials.get(color);
+    }
+    function mesh(geometry, material, parent, x = 0, y = 0, z = 0) {
+      const m = new THREE.Mesh(geometry, material);
+      m.position.set(x, y, z);
+      m.castShadow = true;
+      m.receiveShadow = true;
+      parent.add(m);
+      return m;
+    }
+    function box(parent, w, h, d, color, x = 0, y = 0, z = 0) {
+      return mesh(new THREE.BoxGeometry(w, h, d), typeof color === 'number' ? mat(color) : color, parent, x, y, z);
+    }
+    function cylinder(parent, rt, rb, h, color, x = 0, y = 0, z = 0, segments = 16) {
+      return mesh(new THREE.CylinderGeometry(rt, rb, h, segments), typeof color === 'number' ? mat(color) : color, parent, x, y, z);
+    }
+
+    // Floating dollhouse shell.
+    box(scene, 11.5, 0.52, 11.5, 0xd8c6b7, 0, -0.26, 0);
+    box(scene, 11, 0.08, 11, 0xeadfd3, 0, 0.04, 0);
+    box(scene, 11, 4.4, 0.16, 0xf2e9e1, 0, 2.28, -5.43);
+    box(scene, 0.16, 4.4, 11, 0xeee1d8, -5.43, 2.28, 0);
+    box(scene, 11, 0.12, 0.12, 0xffffff, 0, 0.16, -5.31);
+    box(scene, 0.12, 0.12, 11, 0xffffff, -5.31, 0.16, 0);
+    box(scene, 5.6, 0.035, 4.1, 0xdcb3a4, -0.25, 0.098, -0.35);
+
+    const interactive = [];
+    const props = [];
+    function registerProp(group, id, label, target) {
+      const prop = { group, id, label, target: new THREE.Vector3(target[0], FLOOR_Y, target[1]) };
+      group.userData.prop = prop;
+      interactive.push(group);
+      props.push(prop);
+      return prop;
+    }
+
+    function makeSofa() {
+      const g = new THREE.Group();
+      g.position.set(-2.15, FLOOR_Y, -3.9);
+      scene.add(g);
+      const fabric = 0x91a497;
+      box(g, 3.65, 0.42, 1.18, fabric, 0, 0.48, 0);
+      box(g, 3.65, 1.12, 0.28, fabric, 0, 1.02, -0.5);
+      box(g, 0.27, 0.72, 1.3, fabric, -1.78, 0.65, 0);
+      box(g, 0.27, 0.72, 1.3, fabric, 1.78, 0.65, 0);
+      for (let i = -1; i <= 1; i++) box(g, 1.05, 0.17, 0.92, 0xaab7aa, i * 1.1, 0.77, 0.08);
+      const pillow = box(g, 0.58, 0.58, 0.18, ACCENT, -1.05, 1.15, -0.27);
+      pillow.rotation.z = -0.16;
+      for (const x of [-1.45, 1.45]) for (const z of [-0.36, 0.36]) box(g, 0.13, 0.28, 0.13, 0x514944, x, 0.14, z);
+      registerProp(g, 'sofa', 'Sofa', [-2.15, -2.7]);
+    }
+
+    function makeTable() {
+      const g = new THREE.Group();
+      g.position.set(0.55, FLOOR_Y, -0.15);
+      scene.add(g);
+      box(g, 2.25, 0.16, 1.25, 0xb89478, 0, 0.75, 0);
+      for (const x of [-0.91, 0.91]) for (const z of [-0.43, 0.43]) box(g, 0.13, 0.7, 0.13, 0x725e50, x, 0.35, z);
+      const book = box(g, 0.55, 0.07, 0.38, ACCENT, -0.45, 0.87, 0.05);
+      book.rotation.y = 0.15;
+      cylinder(g, 0.12, 0.1, 0.24, 0xf8f0e5, 0.52, 0.94, -0.1);
+      registerProp(g, 'table', 'Coffee table', [0.55, 1.15]);
+    }
+
+    let lampOn = true;
+    let lampLight, shadeMaterial;
+    function makeLamp() {
+      const g = new THREE.Group();
+      g.position.set(4.15, FLOOR_Y, -3.65);
+      scene.add(g);
+      cylinder(g, 0.34, 0.4, 0.12, 0x5e5550, 0, 0.06, 0);
+      cylinder(g, 0.045, 0.045, 1.85, 0x5e5550, 0, 1.02, 0);
+      shadeMaterial = new THREE.MeshStandardMaterial({ color: 0xf0d6b7, roughness: 1 });
+      cylinder(g, 0.35, 0.56, 0.58, shadeMaterial, 0, 2.08, 0);
+      lampLight = new THREE.PointLight(0xffd9ac, 0.5, 7, 2);
+      lampLight.position.set(0, 1.85, 0);
+      g.add(lampLight);
+      const p = registerProp(g, 'lamp', 'Lamp', [3.65, -2.55]);
+      p.onArrive = () => {
+        lampOn = !lampOn;
+        shadeMaterial.color.setHex(lampOn ? 0xf0d6b7 : 0xc8beb2);
+        showToast(`Lamp switched ${lampOn ? 'on' : 'off'}`);
+      };
+    }
+
+    function makePlant(x, z, scale = 1, clickable = false) {
+      const g = new THREE.Group();
+      g.position.set(x, FLOOR_Y, z);
+      g.scale.setScalar(scale);
+      scene.add(g);
+      cylinder(g, 0.33, 0.25, 0.55, 0xc87e62, 0, 0.28, 0);
+      cylinder(g, 0.035, 0.045, 1.25, 0x63765e, 0, 1.05, 0, 8);
+      const leafGeo = new THREE.SphereGeometry(0.25, 10, 8);
+      for (let i = 0; i < 7; i++) {
+        const a = i * 2.4;
+        const leaf = mesh(leafGeo, mat(i % 2 ? 0x71876a : 0x879a79), g,
+          Math.cos(a) * 0.26, 0.85 + i * 0.15, Math.sin(a) * 0.26);
+        leaf.scale.set(0.65, 1.5, 0.45);
+        leaf.rotation.z = Math.cos(a) * 0.75;
+        leaf.rotation.x = Math.sin(a) * 0.5;
+      }
+      if (clickable) registerProp(g, 'plant', 'Plant', [3.45, 2.45]);
+      return g;
+    }
+
+    let windowPane;
+    function makeWindow() {
+      const g = new THREE.Group();
+      g.position.set(2.05, 2.85, -5.3);
+      scene.add(g);
+      const paneMat = new THREE.MeshStandardMaterial({ color: 0xb8d1d5, roughness: 1 });
+      windowPane = box(g, 2.15, 1.55, 0.05, paneMat);
+      box(g, 2.42, 0.12, 0.13, 0x5b514b, 0, 0.84, 0.04);
+      box(g, 2.42, 0.12, 0.13, 0x5b514b, 0, -0.84, 0.04);
+      box(g, 0.12, 1.8, 0.13, 0x5b514b, -1.15, 0, 0.04);
+      box(g, 0.12, 1.8, 0.13, 0x5b514b, 1.15, 0, 0.04);
+      box(g, 0.07, 1.55, 0.1, 0x5b514b, 0, 0, 0.06);
+      box(g, 2.15, 0.07, 0.1, 0x5b514b, 0, 0, 0.06);
+      box(g, 2.55, 0.13, 0.36, 0xf8f0e8, 0, -0.91, 0.13);
+      registerProp(g, 'window', 'Window', [2.05, -4.15]);
+    }
+
+    makeSofa();
+    makeTable();
+    makeLamp();
+    makePlant(4.25, 3.55, 1, true);
+    makePlant(-4.45, -4.25, 0.8);
+    makeWindow();
+
+    // Stylized family, built entirely from geometry.
+    const family = [];
+    function createPerson(options) {
+      const index = family.length;
+      const root = new THREE.Group();
+      root.position.set(options.position[0], FLOOR_Y, options.position[1]);
+      scene.add(root);
+
+      const model = new THREE.Group();
+      model.scale.setScalar(options.scale);
+      root.add(model);
+
+      const skin = mat(options.skin);
+      const shirt = mat(options.shirt);
+      const pants = mat(options.pants);
+      const hair = mat(options.hair || 0x241b18);
+      const ink = mat(0x322724);
+      const shoe = mat(options.shoes || 0xf0e5d8);
+
+      const torso = box(model, 0.68, 0.76, 0.4, shirt, 0, 1.18, 0);
+      cylinder(model, 0.13, 0.13, 0.2, skin, 0, 1.59, 0);
+
+      const legs = [];
+      for (const x of [-0.18, 0.18]) {
+        const pivot = new THREE.Group();
+        pivot.position.set(x, 0.8, 0);
+        model.add(pivot);
+        mesh(new THREE.CapsuleGeometry(0.105, 0.4, 4, 8), pants, pivot, 0, -0.32, 0);
+        box(pivot, 0.24, 0.14, 0.36, shoe, 0, -0.72, 0.08);
+        legs.push(pivot);
+      }
+
+      const arms = [];
+      for (const x of [-0.43, 0.43]) {
+        const pivot = new THREE.Group();
+        pivot.position.set(x, 1.47, 0);
+        model.add(pivot);
+        mesh(new THREE.CapsuleGeometry(0.09, 0.4, 4, 8), skin, pivot, 0, -0.31, 0);
+        mesh(new THREE.SphereGeometry(0.105, 10, 8), skin, pivot, 0, -0.62, 0);
+        arms.push(pivot);
+      }
+
+      const head = new THREE.Group();
+      head.position.set(0, 2.02, 0);
+      model.add(head);
+      mesh(new THREE.SphereGeometry(0.42, 20, 16), skin, head);
+      mesh(new THREE.SphereGeometry(0.095, 10, 8), skin, head, -0.41, 0, 0);
+      mesh(new THREE.SphereGeometry(0.095, 10, 8), skin, head, 0.41, 0, 0);
+      for (const x of [-0.135, 0.135]) mesh(new THREE.SphereGeometry(0.032, 8, 6), ink, head, x, 0.045, 0.402);
+      mesh(new THREE.SphereGeometry(0.042, 8, 6), skin, head, 0, -0.055, 0.425);
+      const smile = mesh(new THREE.TorusGeometry(0.07, 0.012, 4, 12, Math.PI), ink, head, 0, -0.15, 0.408);
+      smile.rotation.z = Math.PI;
+
+      const capGeo = new THREE.SphereGeometry(0.435, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2);
+      if (options.style === 'crop') {
+        mesh(capGeo, hair, head, 0, 0.09, 0);
+      } else if (options.style === 'afro') {
+        mesh(capGeo, hair, head, 0, 0.12, 0);
+        const puffs = [[0,.43,0],[-.27,.31,0],[.27,.31,0],[0,.3,-.27],[-.23,.38,-.18],[.23,.38,-.18],[0,.32,.24]];
+        puffs.forEach(p => mesh(new THREE.SphereGeometry(0.24, 12, 10), hair, head, ...p));
+      } else if (options.style === 'braids') {
+        mesh(capGeo, hair, head, 0, 0.11, 0);
+        for (let i = 0; i < 9; i++) {
+          const a = Math.PI + (i / 8) * Math.PI;
+          const x = Math.cos(a) * 0.38;
+          const z = Math.sin(a) * 0.35;
+          box(head, 0.085, 0.68, 0.085, hair, x, -0.1, z);
+          box(head, 0.1, 0.07, 0.1, ACCENT, x, -0.42, z);
+        }
+        box(head, 0.085, 0.58, 0.085, hair, -0.37, -0.06, 0.14);
+        box(head, 0.085, 0.58, 0.085, hair, 0.37, -0.06, 0.14);
+      } else if (options.style === 'wrap') {
+        mesh(new THREE.SphereGeometry(0.45, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(ACCENT), head, 0, 0.08, 0);
+        const band = mesh(new THREE.TorusGeometry(0.425, 0.065, 8, 24), mat(0xe9a18c), head, 0, 0.11, 0);
+        band.rotation.x = Math.PI / 2;
+        const knot = box(head, 0.25, 0.2, 0.2, ACCENT, 0.25, 0.47, 0);
+        knot.rotation.z = 0.35;
+      }
+
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.48, 0.57, 40),
+        new THREE.MeshBasicMaterial({ color: ACCENT, side: THREE.DoubleSide })
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.035;
+      ring.visible = false;
+      root.add(ring);
+
+      const c = {
+        index, name: options.name, root, model, torso, head, arms, legs, ring,
+        energy: options.energy, happiness: options.happiness,
+        walking: false, destination: null, action: null, phase: index * 1.7
+      };
+      root.userData.character = c;
+      interactive.push(root);
+      family.push(c);
+      return c;
+    }
+
+    createPerson({ name: 'Maya', skin: 0x7b4933, shirt: 0xd8755d, pants: 0xe8d9c8, style: 'wrap', scale: 1, position: [-3.2, 2.25], energy: 68, happiness: 82 });
+    createPerson({ name: 'Andre', skin: 0x5f3829, shirt: 0x829b9b, pants: 0x5e625f, style: 'crop', scale: 1.04, position: [2.8, 2.7], energy: 77, happiness: 74 });
+    createPerson({ name: 'Zoe', skin: 0x9b6041, shirt: 0xe2c488, pants: 0x718079, style: 'braids', scale: 0.79, position: [-0.8, 3.65], energy: 88, happiness: 86 });
+    createPerson({ name: 'Eli', skin: 0x82503a, shirt: 0x9aafbe, pants: 0xc4846e, style: 'afro', scale: 0.64, position: [1.05, 3.8], energy: 91, happiness: 79 });
+
+    const peopleEl = document.getElementById('people');
+    const tipEl = document.getElementById('tip');
+    const toastEl = document.getElementById('toast');
+    let selected = null;
+    let started = false;
+    let elapsed = 0;
+    let toastTimer;
+
+    family.forEach(c => {
+      const card = document.createElement('button');
+      card.className = 'person';
+      card.innerHTML = `
+        <div class="person-top"><span class="person-name">${c.name}</span><span class="selected-dot"></span></div>
+        <div class="need-row"><span>Energy</span><div class="track"><div class="fill energy-fill"></div></div><span class="need-value energy-value">0</span></div>
+        <div class="need-row happy"><span>Joy</span><div class="track"><div class="fill happy-fill"></div></div><span class="need-value happy-value">0</span></div>`;
+      card.addEventListener('click', () => selectPerson(c));
+      peopleEl.appendChild(card);
+      c.card = card;
+      c.ui = {
+        energyFill: card.querySelector('.energy-fill'),
+        happyFill: card.querySelector('.happy-fill'),
+        energyValue: card.querySelector('.energy-value'),
+        happyValue: card.querySelector('.happy-value')
+      };
+    });
+
+    function selectPerson(c) {
+      if (selected) selected.ring.visible = false;
+      selected = c;
+      c.ring.visible = true;
+      family.forEach(p => p.card.classList.toggle('selected', p === c));
+      tipEl.textContent = `${c.name} selected · Click the sofa, table, lamp, plant, or window.`;
+    }
+    selectPerson(family[0]);
+
+    function showToast(text) {
+      toastEl.textContent = text;
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1800);
+    }
+
+    function sendTo(c, prop) {
+      const spread = (c.index - 1.5) * (prop.id === 'sofa' ? 0.48 : 0.13);
+      c.destination = prop.target.clone();
+      c.destination.x += spread;
+      c.walking = true;
+      c.action = null;
+      c.activeProp = prop;
+      showToast(`${c.name} → ${prop.label}`);
+    }
+
+    function turnToward(c, angle, dt) {
+      const delta = Math.atan2(Math.sin(angle - c.root.rotation.y), Math.cos(angle - c.root.rotation.y));
+      c.root.rotation.y += delta * Math.min(1, dt * 9);
+    }
+
+    function dampRotation(object, dt) {
+      const f = Math.exp(-dt * 9);
+      object.rotation.x *= f;
+      object.rotation.y *= f;
+      object.rotation.z *= f;
+    }
+
+    function arrive(c) {
+      c.walking = false;
+      c.root.position.x = c.destination.x;
+      c.root.position.z = c.destination.z;
+      c.action = c.activeProp;
+      c.actionStart = elapsed;
+      const p = c.activeProp.group.position;
+      turnToward(c, Math.atan2(p.x - c.root.position.x, p.z - c.root.position.z), 1);
+      if (c.activeProp.onArrive) c.activeProp.onArrive();
+      if (c.activeProp.id === 'sofa') showToast(`${c.name} is relaxing · needs rising`);
+    }
+
+    function updatePerson(c, dt) {
+      c.energy = Math.max(0, c.energy - dt * (c.walking ? 0.42 : 0.18));
+      c.happiness = Math.max(0, c.happiness - dt * 0.12);
+
+      if (c.walking) {
+        const dx = c.destination.x - c.root.position.x;
+        const dz = c.destination.z - c.root.position.z;
+        const distance = Math.hypot(dx, dz);
+        if (distance < 0.065) {
+          arrive(c);
+        } else {
+          const speed = 1.5 * (0.55 + 0.45 * c.energy / 100);
+          const step = Math.min(distance, speed * dt);
+          c.root.position.x += dx / distance * step;
+          c.root.position.z += dz / distance * step;
+          turnToward(c, Math.atan2(dx, dz), dt);
+          c.phase += dt * 9;
+          const swing = Math.sin(c.phase);
+          c.legs[0].rotation.x = swing * 0.55;
+          c.legs[1].rotation.x = -swing * 0.55;
+          c.arms[0].rotation.x = -swing * 0.45;
+          c.arms[1].rotation.x = swing * 0.45;
+          c.model.position.y = Math.abs(Math.sin(c.phase)) * 0.035;
+        }
+      } else {
+        [...c.legs, ...c.arms, c.torso, c.head].forEach(part => dampRotation(part, dt));
+        c.model.position.y *= Math.exp(-dt * 8);
+        c.head.rotation.y = Math.sin(elapsed * 0.7 + c.index) * 0.035;
+
+        if (c.action) {
+          const t = elapsed - c.actionStart;
+          c.happiness = Math.min(100, c.happiness + dt * 0.65);
+          if (c.action.id === 'sofa') {
+            c.energy = Math.min(100, c.energy + dt * 10);
+            c.happiness = Math.min(100, c.happiness + dt * 3.5);
+            c.torso.rotation.x = -0.09;
+            c.head.rotation.z = Math.sin(t * 1.7) * 0.055;
+            c.arms[0].rotation.x = -0.3;
+            c.arms[1].rotation.x = -0.3;
+            c.model.position.y = 0.018 + Math.sin(t * 2) * 0.012;
+          } else if (c.action.id === 'lamp') {
+            c.arms[1].rotation.x = -1.75 + Math.sin(t * 3) * 0.08;
+            c.head.rotation.x = -0.12;
+          } else if (c.action.id === 'table') {
+            c.head.rotation.x = 0.17;
+            c.arms[0].rotation.x = -0.65 + Math.sin(t * 2) * 0.08;
+            c.arms[1].rotation.x = -0.65;
+          } else if (c.action.id === 'plant') {
+            c.arms[0].rotation.x = -1.05;
+            c.arms[0].rotation.z = -0.35;
+            c.head.rotation.z = Math.sin(t * 1.8) * 0.08;
+          } else if (c.action.id === 'window') {
+            c.head.rotation.y = Math.sin(t * 0.8) * 0.2;
+            c.model.position.y = Math.sin(t * 1.5) * 0.008;
+          }
+        }
+      }
+
+      c.energy = THREE.MathUtils.clamp(c.energy, 0, 100);
+      c.happiness = THREE.MathUtils.clamp(c.happiness, 0, 100);
+      c.ui.energyFill.style.transform = `scaleX(${c.energy / 100})`;
+      c.ui.happyFill.style.transform = `scaleX(${c.happiness / 100})`;
+      c.ui.energyValue.textContent = Math.round(c.energy);
+      c.ui.happyValue.textContent = Math.round(c.happiness);
+    }
+
+    // Click picking ignores camera drags.
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    let pointerDown = null;
+    renderer.domElement.addEventListener('pointerdown', e => {
+      pointerDown = { x: e.clientX, y: e.clientY };
+    });
+    renderer.domElement.addEventListener('pointerup', e => {
+      if (!started || !pointerDown) return;
+      const moved = Math.hypot(e.clientX - pointerDown.x, e.clientY - pointerDown.y);
+      pointerDown = null;
+      if (moved > 6) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.set((e.clientX - rect.left) / rect.width * 2 - 1, -(e.clientY - rect.top) / rect.height * 2 + 1);
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(interactive, true);
+      if (!hits.length) return;
+      let object = hits[0].object;
+      while (object && !object.userData.character && !object.userData.prop) object = object.parent;
+      if (!object) return;
+      if (object.userData.character) selectPerson(object.userData.character);
+      else if (object.userData.prop) {
+        if (selected) sendTo(selected, object.userData.prop);
+        else showToast('Select a family member first');
+      }
+    });
+
+    const dayColor = new THREE.Color(0xeee8e1);
+    const nightColor = new THREE.Color(0xbfc5d2);
+    const paneDay = new THREE.Color(0xb8d1d5);
+    const paneNight = new THREE.Color(0x77869e);
+    function updateDaylight() {
+      const daylight = 0.5 + 0.5 * Math.cos(elapsed * 0.035);
+      sun.intensity = 0.5 + daylight * 1.3;
+      hemi.intensity = 0.75 + daylight * 0.6;
+      scene.background.copy(nightColor).lerp(dayColor, daylight);
+      windowPane.material.color.copy(paneNight).lerp(paneDay, daylight);
+      lampLight.intensity = lampOn ? 0.25 + (1 - daylight) * 0.75 : 0;
+      document.getElementById('daylight').textContent =
+        daylight > 0.72 ? 'Daylight' : daylight > 0.35 ? 'Golden hour' : 'Evening';
+    }
+
+    function resize() {
+      const w = innerWidth, h = innerHeight;
+      const aspect = w / h;
+      const view = 15.2;
+      if (aspect >= 1) {
+        camera.left = -view * aspect / 2;
+        camera.right = view * aspect / 2;
+        camera.top = view / 2;
+        camera.bottom = -view / 2;
+      } else {
+        camera.left = -view / 2;
+        camera.right = view / 2;
+        camera.top = view / aspect / 2;
+        camera.bottom = -view / aspect / 2;
+      }
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+    addEventListener('resize', resize);
+    resize();
+
+    const startOverlay = document.getElementById('start');
+    function startGame() {
+      if (started) return;
+      started = true;
+      startOverlay.classList.add('hidden');
+      showToast('Welcome home');
+    }
+    startOverlay.addEventListener('click', startGame);
+    startOverlay.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') startGame();
+    });
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      if (started) {
+        elapsed += dt;
+        family.forEach(c => updatePerson(c, dt));
+      }
+      updateDaylight();
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    family.forEach(c => updatePerson(c, 0));
+    animate();
+  </script>
+</body>
+</html>
